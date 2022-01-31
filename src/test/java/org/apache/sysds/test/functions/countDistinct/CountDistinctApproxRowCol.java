@@ -123,6 +123,20 @@ public class CountDistinctApproxRowCol extends CountDistinctRowColBase {
 		countDistinctScalarTest(120, 100, 1000, 1.0, ex, tolerance);
 	}
 
+	// @Test TODO fix
+	public void testSparkSparse500Unique() {
+		ExecType ex = ExecType.SPARK;
+		double tolerance = 0.00001 + 500 * percentTolerance;
+		countDistinctScalarTest(500, 100, 640000, 0.1, ex, tolerance);
+	}
+
+	// @Test TODO fix
+	public void testSparkSparse120Unique(){
+		ExecType ex = ExecType.SPARK;
+		double tolerance = 0.00001 + 120 * percentTolerance;
+		countDistinctScalarTest(120, 100, 64000, 0.1, ex, tolerance);
+	}
+
 	@Override
 	protected String getTestClassDir() {
 		return TEST_CLASS_DIR;
