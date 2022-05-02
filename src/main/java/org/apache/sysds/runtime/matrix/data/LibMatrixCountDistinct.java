@@ -29,6 +29,7 @@ import org.apache.sysds.runtime.data.DenseBlock;
 import org.apache.sysds.runtime.data.SparseBlock;
 import org.apache.sysds.runtime.instructions.spark.data.CorrMatrixBlock;
 import org.apache.sysds.runtime.matrix.data.sketch.MatrixSketch;
+import org.apache.sysds.runtime.matrix.data.sketch.countdistinctapprox.HLLSketch;
 import org.apache.sysds.runtime.matrix.data.sketch.countdistinctapprox.KMVSketch;
 import org.apache.sysds.runtime.matrix.operators.CountDistinctOperator;
 import org.apache.sysds.runtime.matrix.operators.CountDistinctOperatorTypes;
@@ -69,14 +70,11 @@ public class LibMatrixCountDistinct {
 	 */
 	public static int estimateDistinctValues(MatrixBlock in, CountDistinctOperator op) {
 		int res = 0;
-		if(op.getOperatorType() == CountDistinctOperatorTypes.KMV &&
+		if((op.getOperatorType() == CountDistinctOperatorTypes.KMV || op.getOperatorType() == CountDistinctOperatorTypes.HLL) &&
 			(op.getHashType() == HashType.ExpHash || op.getHashType() == HashType.StandardJava)) {
 			throw new DMLException("Invalid hashing configuration using " + op.getHashType() + " and " + op.getOperatorType());
 		}
-		else if(op.getOperatorType() == CountDistinctOperatorTypes.HLL) {
-			throw new NotImplementedException("HyperLogLog not implemented");
-		}
-		// shortcut in simplest case.
+		// shortcut in the simplest case.
 		if(in.getLength() == 1 || in.isEmpty())
 			return 1;
 		else if(in.getNonZeros() < minimumSize) {
@@ -89,8 +87,10 @@ public class LibMatrixCountDistinct {
 					res = countDistinctValuesNaive(in);
 					break;
 				case KMV:
-					KMVSketch sketch = new KMVSketch(op);
-					res = sketch.getScalarValue(in);
+					res = new KMVSketch(op).getScalarValue(in);
+					break;
+				case HLL:
+					res = new HLLSketch(op).getScalarValue(in);
 					break;
 				default:
 					throw new DMLException("Invalid or not implemented Estimator Type");

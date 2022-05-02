@@ -77,9 +77,9 @@ public class Hash {
 				// Here just for reference
 				return Double.valueOf(o).hashCode();
 			case LinearHash:
-				// Altho Linear Hashing is locality sensitive, it is not in this case
+				// Although Linear Hashing is locality sensitive, it is not in this case
 				// since the bit positions for the double value is split in exponent and mantissa.
-				// If the locality sensitive aspect is required use linear hash on an double value rounded to integer.
+				// If the locality sensitive aspect is required use linear hash on a double value rounded to integer.
 				long v = Double.doubleToLongBits(o);
 				return linearHash((int) (v ^ (v >>> 32)));
 			default:
