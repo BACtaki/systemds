@@ -37,7 +37,13 @@ public class HLLSketch extends CountDistinctApproxSketch {
             }
         }
 
-        return hashBuckets.getLogLogEstimate();
+        int estimate = hashBuckets.getLogLogEstimate();
+
+        if (blkIn.getNonZeros() != 0 && blkIn.getNonZeros() < estimate) {
+            estimate = (int) blkIn.getNonZeros();
+        }
+
+        return estimate;
     }
 
     @Override
