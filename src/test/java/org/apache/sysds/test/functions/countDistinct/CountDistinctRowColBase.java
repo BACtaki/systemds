@@ -37,6 +37,7 @@ public abstract class CountDistinctRowColBase extends CountDistinctBase {
 		countDistinctScalarTest(800, 1000, 1000, 1.0, ex, tolerance);
 	}
 
+	// this is it
 	@Test
 	public void testCPDenseXLarge() {
 		ExecType ex = ExecType.CP;

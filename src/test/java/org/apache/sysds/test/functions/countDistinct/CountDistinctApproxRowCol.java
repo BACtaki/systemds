@@ -62,6 +62,7 @@ public class CountDistinctApproxRowCol extends CountDistinctRowColBase {
 		countDistinctScalarTest(9000, 999, 999, 0.1, ex, tolerance);
 	}
 
+	// here it is
 	@Test
 	public void testCPDenseXSmall() {
 		ExecType ex = ExecType.CP;

@@ -8,8 +8,6 @@ import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 import org.apache.sysds.runtime.matrix.operators.CountDistinctOperator;
 import org.apache.sysds.utils.Hash;
 
-import java.util.HashMap;
-
 public class HLLSketch extends CountDistinctApproxSketch {
 
     private static final Log LOGGER = LogFactory.getLog(HLLSketch.class.getName());
@@ -22,7 +20,6 @@ public class HLLSketch extends CountDistinctApproxSketch {
     // 22 * 32 = 700 bits < 100 bytes of memory.
     // TODO Explore implications of using all 10 bits; do we even need to use all of them?
     private static final int N_BITS_HASH_BUCKET_KEY = 22;
-    private static HashMap<Integer, Integer> HASH_BUCKETS = new HashMap<>(N_BITS_HASH_BUCKET_KEY);
 
     public HLLSketch(CountDistinctOperator op) {
         super(op);
@@ -30,48 +27,17 @@ public class HLLSketch extends CountDistinctApproxSketch {
 
     @Override
     public Integer getScalarValue(MatrixBlock blkIn) {
+        HyperLogLogHashBucket hashBuckets = new HyperLogLogHashBucket(N_BITS_HASH_BUCKET_KEY);
         for (int i=0; i<blkIn.getNumRows(); ++i) {
-            for(int j=0; j<blkIn.getNumColumns(); ++j) {
-
-                // TODO Separate out these calculations in a different function;
-                //  maybe even a separate file in the utils module.
+            for (int j=0; j<blkIn.getNumColumns(); ++j) {
                 int hash = Hash.hash(blkIn.getValue(i, j), this.op.getHashType());
                 LOGGER.debug("Object hash (decimal)=" + hash + " Object hash (binary)=" + Integer.toBinaryString(hash));
 
-                // A | B
-                // [1 1 ... 1] | [1 1 ... 1]
-                // get N bits from left to create A and B
-                int A = extractKBitsFromIndex(hash, N_BITS_HASH_BUCKET_KEY, 10 - 1);
-                LOGGER.debug("A (decimal)=" + A + " A (binary)=" + Integer.toBinaryString(A));
-                int B = extractKBitsFromIndex(hash, 10, 0);
-                LOGGER.debug("B (decimal)=" + B + " B (binary)=" + Integer.toBinaryString(B));
-
-                // Use A to get bucket hash - x
-                int existingZeroCount = HASH_BUCKETS.getOrDefault(A, 0);
-
-                // Count number of leading 0s in B - y
-                int newZeroCount = Integer.numberOfLeadingZeros(B);
-                int longestSeqOfZeros = Math.max(existingZeroCount, newZeroCount);
-                LOGGER.debug("Longest seq of 0s for key " + A + "=" + longestSeqOfZeros);
-
-                // Now set BUCKETS[x] = y;
-                HASH_BUCKETS.put(A, longestSeqOfZeros);
+                hashBuckets.add(hash);
             }
         }
 
-        // Take the harmonic mean of smallest 70% of hashes
-        return 0;
-    }
-
-    /**
-     *
-     * @param num
-     * @param k
-     * @param rightStartIndex 0-indexed from the right
-     * @return
-     */
-    private int extractKBitsFromIndex(int num, int k, int rightStartIndex) {
-        return ((1 << k) - 1) & (num >> rightStartIndex);
+        return hashBuckets.getLogLogEstimate();
     }
 
     @Override
