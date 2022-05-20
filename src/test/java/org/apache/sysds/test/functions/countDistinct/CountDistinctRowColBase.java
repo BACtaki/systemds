@@ -37,12 +37,19 @@ public abstract class CountDistinctRowColBase extends CountDistinctBase {
 		countDistinctScalarTest(800, 1000, 1000, 1.0, ex, tolerance);
 	}
 
-	// this is it
 	@Test
 	public void testCPDenseXLarge() {
 		ExecType ex = ExecType.CP;
 		double tolerance = baseTolerance + 1723 * percentTolerance;
 		countDistinctScalarTest(1723, 5000, 2000, 1.0, ex, tolerance);
+	}
+
+	// this is it
+	@Test
+	public void testCPDenseXLarge1() {
+		ExecType ex = ExecType.CP;
+		double tolerance = baseTolerance + 10000 * percentTolerance;
+		countDistinctScalarTest(10000, 10000, 10000, 1.0, ex, tolerance);
 	}
 
 	@Test

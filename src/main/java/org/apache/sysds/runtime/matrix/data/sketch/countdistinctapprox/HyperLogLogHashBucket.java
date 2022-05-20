@@ -1,20 +1,23 @@
 package org.apache.sysds.runtime.matrix.data.sketch.countdistinctapprox;
 
-import org.apache.commons.lang.NotImplementedException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 
 public class HyperLogLogHashBucket {
+    private enum MeanType {
+        SIMPLE, HARMONIC
+    }
+
     private static final Log LOGGER = LogFactory.getLog(HyperLogLogHashBucket.class.getName());
 
     private static int N_BITS_HASH_BUCKET_KEY;
     private static HashMap<Integer, Integer> HASH_BUCKETS;
     private static final double correction = 0.77351;
-
-    // TODO HLL
-    // private TreeSet<Integer> sortedHashes;
 
     public HyperLogLogHashBucket(int leadingK) {
         N_BITS_HASH_BUCKET_KEY = leadingK;
@@ -25,9 +28,9 @@ public class HyperLogLogHashBucket {
         // A | B
         // [1 1 ... 1] | [1 1 ... 1]
         // get N bits from left to create A and B
-        int A = extractKBitsFromIndex(hash, N_BITS_HASH_BUCKET_KEY, 10);
+        int A = extractKBitsFromIndex(hash, N_BITS_HASH_BUCKET_KEY, 32 - N_BITS_HASH_BUCKET_KEY);
         LOGGER.debug("A (decimal)=" + A + " A (binary)=" + Integer.toBinaryString(A));
-        int B = extractKBitsFromIndex(hash, 10, 0);
+        int B = extractKBitsFromIndex(hash, 32 - N_BITS_HASH_BUCKET_KEY, 0);
         LOGGER.debug("B (decimal)=" + B + " B (binary)=" + Integer.toBinaryString(B));
 
         // Use A to get bucket hash - x
@@ -44,18 +47,63 @@ public class HyperLogLogHashBucket {
 
     public int getLogLogEstimate() {
 
-        int m = HASH_BUCKETS.size();
-        float sum = HASH_BUCKETS.values().stream().reduce(0, Integer::sum);
+        List<Integer> allValues = new LinkedList<>(HASH_BUCKETS.values());
+        int m = allValues.size();
 
-        return (int) Math.round((m * Math.pow(2, Math.floor(sum / m))) / correction);
+        int averageBitLengthFloor = (int)Math.floor(getMean(allValues, MeanType.SIMPLE));
+        return (int) Math.round((m * Math.pow(2, averageBitLengthFloor)) / correction);
     }
 
     public int getSuperLogLogEstimate() {
-        throw new NotImplementedException("");
+
+        List<Integer> smallestKValues = getSmallestK(0.7);
+        int m = smallestKValues.size();
+
+        int averageBitLengthFloor = (int)Math.floor(getMean(smallestKValues, MeanType.SIMPLE));
+        return (int) Math.round((m * Math.pow(2, averageBitLengthFloor)) / correction);
     }
 
     public int getHyperLogLogEstimate() {
-        throw new NotImplementedException("");
+
+        List<Integer> smallestKValues = getSmallestK(0.3);
+        int m = smallestKValues.size();
+
+        int averageBitLengthFloor = (int)Math.floor(getMean(smallestKValues, MeanType.HARMONIC));
+        return (int) Math.round((m * Math.pow(2, averageBitLengthFloor)) / correction);
+    }
+
+    private double getMean(List<Integer> list, MeanType type) {
+        int n = list.size();
+
+        // Todo check if this makes sense
+        if (n < 1) {
+            return 0.0;
+        }
+
+        if (type == MeanType.HARMONIC) {
+            double denominator = 0.0;
+            for (Integer i : list) {
+                // Todo division by zero error
+                denominator += 1.0 / i;
+            }
+            return n / denominator;
+
+        } else {  // default to simple mean
+            return list.stream().reduce(0, Integer::sum) / (double)n;
+        }
+
+    }
+
+    private List<Integer> getSmallestK(double kPercentage) {
+        LinkedList<Integer> values = new LinkedList<>(HASH_BUCKETS.values());
+        Collections.sort(values);
+
+        int removeN = (int) Math.floor((1 - kPercentage) * HASH_BUCKETS.size());
+        for (int i=0; i<removeN; ++i) {
+            values.pollLast();
+        }
+
+        return values;
     }
 
     /**

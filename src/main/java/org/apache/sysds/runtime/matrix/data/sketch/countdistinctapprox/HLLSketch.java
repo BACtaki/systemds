@@ -19,7 +19,7 @@ public class HLLSketch extends CountDistinctApproxSketch {
     // the bucket that the hash belongs to. Each bucket stores a 32bit int, so all buckets take a total of
     // 22 * 32 = 700 bits < 100 bytes of memory.
     // TODO Explore implications of using all 10 bits; do we even need to use all of them?
-    private static final int N_BITS_HASH_BUCKET_KEY = 22;
+    private static final int N_BITS_HASH_BUCKET_KEY = 10;
 
     public HLLSketch(CountDistinctOperator op) {
         super(op);
@@ -37,7 +37,9 @@ public class HLLSketch extends CountDistinctApproxSketch {
             }
         }
 
-        int estimate = hashBuckets.getLogLogEstimate();
+//        int estimate = hashBuckets.getLogLogEstimate();
+//        int estimate = hashBuckets.getSuperLogLogEstimate();
+        int estimate = hashBuckets.getHyperLogLogEstimate();
 
         if (blkIn.getNonZeros() != 0 && blkIn.getNonZeros() < estimate) {
             estimate = (int) blkIn.getNonZeros();
