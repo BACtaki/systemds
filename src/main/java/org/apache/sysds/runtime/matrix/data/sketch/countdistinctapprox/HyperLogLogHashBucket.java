@@ -15,29 +15,34 @@ public class HyperLogLogHashBucket {
 
     private static final Log LOGGER = LogFactory.getLog(HyperLogLogHashBucket.class.getName());
 
-    private static int N_BITS_HASH_BUCKET_KEY;
+    // Number of bits used to map hash to bucket
+    private static int K;
+    // Maximum number of hash buckets
+    private static int M;
+
     private static HashMap<Integer, Integer> HASH_BUCKETS;
     private static final double correction = 0.77351;
 
     public HyperLogLogHashBucket(int leadingK) {
-        N_BITS_HASH_BUCKET_KEY = leadingK;
-        HASH_BUCKETS = new HashMap<>(N_BITS_HASH_BUCKET_KEY);
+        K = leadingK;
+        M = (int) Math.pow(2, K);
+        HASH_BUCKETS = new HashMap<>(M);
     }
 
     public void add(int hash) {
         // A | B
         // [1 1 ... 1] | [1 1 ... 1]
         // get N bits from left to create A and B
-        int A = extractKBitsFromIndex(hash, N_BITS_HASH_BUCKET_KEY, 32 - N_BITS_HASH_BUCKET_KEY);
+        int A = extractKBitsFromRightIndex(hash, 32 - K, K);
         LOGGER.debug("A (decimal)=" + A + " A (binary)=" + Integer.toBinaryString(A));
-        int B = extractKBitsFromIndex(hash, 32 - N_BITS_HASH_BUCKET_KEY, 0);
+        int B = extractKBitsFromRightIndex(hash, 0, 32 - K);
         LOGGER.debug("B (decimal)=" + B + " B (binary)=" + Integer.toBinaryString(B));
 
-        // Use A to get bucket hash - x
+        // Use A to get bucket hash -> x
         int existingZeroCount = HASH_BUCKETS.getOrDefault(A, 0);
 
-        // Count number of leading 0s in B - y
-        int newZeroCount = Integer.numberOfLeadingZeros(B);
+        // Position of leading 1 in binary representation of B -> y
+        int newZeroCount = getBinaryRank(B);
         int longestSeqOfZeros = Math.max(existingZeroCount, newZeroCount);
         LOGGER.debug("Longest seq of 0s for key " + A + "=" + longestSeqOfZeros);
 
@@ -65,7 +70,8 @@ public class HyperLogLogHashBucket {
 
     public int getHyperLogLogEstimate() {
 
-        List<Integer> smallestKValues = getSmallestK(0.3);
+//        List<Integer> smallestKValues = getSmallestK(0.7);
+        List<Integer> smallestKValues = getSmallestK(0.825);
         int m = smallestKValues.size();
 
         int averageBitLengthFloor = (int)Math.floor(getMean(smallestKValues, MeanType.HARMONIC));
@@ -107,13 +113,23 @@ public class HyperLogLogHashBucket {
     }
 
     /**
-     *
-     * @param num
-     * @param k
-     * @param rightStartIndex 0-indexed from the right
+     * Todo
+     * The rank of a binary number is defined as the 1-indexed position of the leading 1 from the left?
+     * @param hash
      * @return
      */
-    private int extractKBitsFromIndex(int num, int k, int rightStartIndex) {
-        return ((1 << k) - 1) & (num >>> rightStartIndex);
+    private int getBinaryRank(int hash) {
+        return Integer.numberOfLeadingZeros(hash) - K + 1;
+    }
+
+    /**
+     *
+     * @param num
+     * @param rightIndex 0-indexed from the right
+     * @param k number of bits
+     * @return
+     */
+    private int extractKBitsFromRightIndex(int num, int rightIndex, int k) {
+        return ((1 << k) - 1) & (num >>> rightIndex);
     }
 }
