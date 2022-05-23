@@ -56,12 +56,12 @@ public class HLLSketch extends CountDistinctApproxSketch {
 
     @Override
     public MatrixBlock getMatrixValue(CorrMatrixBlock blkIn) {
-        return null;
+        throw new NotImplementedException("create() has not been implemented for HLL yet");
     }
 
     @Override
     public CorrMatrixBlock create(MatrixBlock blkIn) {
-        return null;
+        throw new NotImplementedException("create() has not been implemented for HLL yet");
     }
 
     @Override

@@ -181,37 +181,47 @@ public class KMVSketch extends CountDistinctApproxSketch {
         MatrixBlock blkIn = arg0.getValue();
         MatrixBlock blkInCorr = arg0.getCorrection();
 
-        if (op.getOperatorType() == CountDistinctOperatorTypes.KMV) {
-            double kthSmallestHash;
-            if (op.getDirection().isRow() || op.getDirection().isRowCol()) {
-                kthSmallestHash = blkIn.getValue(idx, 0);
-            } else {  // op.getDirection().isCol()
-                kthSmallestHash = blkIn.getValue(0, idx);
-            }
+        if (op.getOperatorType() != CountDistinctOperatorTypes.KMV) {
+            throw new IllegalArgumentException("Expected operator of type " + op.getOperatorType().toString());
+        }
 
-            double nHashes = blkInCorr.getValue(idx, 0);
-            double k = blkInCorr.getValue(idx, 1);
-            double D = blkInCorr.getValue(idx, 2);
+//        // shortcut in the simplest case.
+//        if(in.getLength() == 1 || in.isEmpty())
+//            return 1;
+//        else if(in.getNonZeros() < minimumSize) {
+//            // Just use naive implementation if the number of nonZeros values size is small.
+//            res = countDistinctValuesNaive(in);
+//        }
 
-            double D2 = D * D;
-            double M = (D2 > (long) Integer.MAX_VALUE) ? Integer.MAX_VALUE : D2;
+        double kthSmallestHash;
+        if (op.getDirection().isRow() || op.getDirection().isRowCol()) {
+            kthSmallestHash = blkIn.getValue(idx, 0);
+        } else {  // op.getDirection().isCol()
+            kthSmallestHash = blkIn.getValue(0, idx);
+        }
 
-            double ceilEstimate;
-            if (nHashes != 0 && nHashes < k) {
-                ceilEstimate = nHashes;
-            } else if (nHashes == 0) {
-                ceilEstimate = 1;
-            } else {
-                double U_k = kthSmallestHash / M;
-                double estimate = (k - 1) / U_k;
-                ceilEstimate = Math.min(estimate, D);
-            }
+        double nHashes = blkInCorr.getValue(idx, 0);
+        double k = blkInCorr.getValue(idx, 1);
+        double D = blkInCorr.getValue(idx, 2);
 
-            if (op.getDirection().isRow() || op.getDirection().isRowCol()) {
-                blkOut.setValue(idx, 0, ceilEstimate);
-            } else {  // op.getDirection().isCol()
-                blkOut.setValue(0, idx, ceilEstimate);
-            }
+        double D2 = D * D;
+        double M = (D2 > (long) Integer.MAX_VALUE) ? Integer.MAX_VALUE : D2;
+
+        double ceilEstimate;
+        if (nHashes != 0 && nHashes < k) {
+            ceilEstimate = nHashes;
+        } else if (nHashes == 0) {
+            ceilEstimate = 1;
+        } else {
+            double U_k = kthSmallestHash / M;
+            double estimate = (k - 1) / U_k;
+            ceilEstimate = Math.min(estimate, D);
+        }
+
+        if (op.getDirection().isRow() || op.getDirection().isRowCol()) {
+            blkOut.setValue(idx, 0, ceilEstimate);
+        } else {  // op.getDirection().isCol()
+            blkOut.setValue(0, idx, ceilEstimate);
         }
     }
 

@@ -33,6 +33,7 @@ import org.apache.sysds.runtime.functionobjects.ReduceAll;
 import org.apache.sysds.runtime.functionobjects.ReduceCol;
 import org.apache.sysds.runtime.functionobjects.ReduceRow;
 import org.apache.sysds.runtime.instructions.InstructionUtils;
+import org.apache.sysds.runtime.instructions.spark.data.CorrMatrixBlock;
 import org.apache.sysds.runtime.lineage.LineageDedupUtils;
 import org.apache.sysds.runtime.lineage.LineageItem;
 import org.apache.sysds.runtime.matrix.data.LibMatrixCountDistinct;
@@ -222,19 +223,10 @@ public class AggregateUnaryCPInstruction extends UnaryCPInstruction {
 					ec.releaseMatrixInput(input1.getName());
 					ec.setScalarOutput(output_name, new IntObject(res));
 
-				} else if (op.getDirection().isRow()) {
-					MatrixBlock res = input.slice(0, input.getNumRows() - 1, 0, 0);
-					for (int i = 0; i < input.getNumRows(); ++i) {
-						res.setValue(i, 0, LibMatrixCountDistinct.estimateDistinctValues(input.slice(i, i), op));
-					}
-					ec.releaseMatrixInput(input1.getName());
-					ec.setMatrixOutput(output_name, res);
+				} else if (op.getDirection().isRow() || op.getDirection().isCol()) {
+					CorrMatrixBlock sketch = LibMatrixCountDistinct.createSketch(input, op);
+					MatrixBlock res = LibMatrixCountDistinct.countDistinctValuesFromSketch(sketch, op);
 
-				} else if (op.getDirection().isCol()) {
-					MatrixBlock res = input.slice(0, 0, 0, input.getNumColumns() - 1);
-					for (int j = 0; j < input.getNumColumns(); ++j) {
-						res.setValue(0, j, LibMatrixCountDistinct.estimateDistinctValues(input.slice(0, input.getNumRows() - 1, j, j), op));
-					}
 					ec.releaseMatrixInput(input1.getName());
 					ec.setMatrixOutput(output_name, res);
 

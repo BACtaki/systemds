@@ -71,7 +71,7 @@ public class HyperLogLogHashBucket {
     public int getHyperLogLogEstimate() {
 
 //        List<Integer> smallestKValues = getSmallestK(0.7);
-        List<Integer> smallestKValues = getSmallestK(0.825);
+        List<Integer> smallestKValues = getSmallestK(0.7);
         int m = smallestKValues.size();
 
         int averageBitLengthFloor = (int)Math.floor(getMean(smallestKValues, MeanType.HARMONIC));
@@ -119,7 +119,7 @@ public class HyperLogLogHashBucket {
      * @return
      */
     private int getBinaryRank(int hash) {
-        return Integer.numberOfLeadingZeros(hash) - K + 1;
+        return Integer.numberOfLeadingZeros(hash) - K + 2;
     }
 
     /**

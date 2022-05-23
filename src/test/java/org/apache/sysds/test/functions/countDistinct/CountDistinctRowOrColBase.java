@@ -42,7 +42,7 @@ public abstract class CountDistinctRowOrColBase extends CountDistinctBase {
         addTestConfiguration(getTestName(),
                 new TestConfiguration(getTestClassDir(), getTestName(), new String[] {"A"}));
 
-        this.percentTolerance = 0.2;
+        this.percentTolerance = 0.25;
     }
 
     @Test

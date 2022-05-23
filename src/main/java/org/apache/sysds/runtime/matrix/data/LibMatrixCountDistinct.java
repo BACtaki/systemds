@@ -58,10 +58,6 @@ public class LibMatrixCountDistinct {
 	 * Public method to count the number of distinct values inside a matrix. Depending on which CountDistinctOperator
 	 * selected it either gets the absolute number or a estimated value.
 	 * 
-	 * TODO: Support counting num distinct in rows, or columns axis.
-	 * 
-	 * TODO: Add support for distributed spark operations
-	 * 
 	 * TODO: If the MatrixBlock type is CompressedMatrix, simply read the values from the ColGroups.
 	 * 
 	 * @param in the input matrix to count number distinct values in
@@ -163,7 +159,7 @@ public class LibMatrixCountDistinct {
 		if (op.getOperatorType() == CountDistinctOperatorTypes.KMV) {
 			sketch = new KMVSketch(op);
 		} else if (op.getOperatorType() == CountDistinctOperatorTypes.HLL) {
-			throw new NotImplementedException("Not implemented yet");
+			sketch = new HLLSketch(op);
 		} else {
 			throw new NotImplementedException("Not implemented yet");
 		}
@@ -177,7 +173,7 @@ public class LibMatrixCountDistinct {
 		if (op.getOperatorType() == CountDistinctOperatorTypes.KMV) {
 			sketch = new KMVSketch(op);
 		} else if (op.getOperatorType() == CountDistinctOperatorTypes.HLL) {
-			throw new NotImplementedException("Not implemented yet");
+			sketch = new HLLSketch(op);
 		} else {
 			throw new NotImplementedException("Not implemented yet");
 		}
