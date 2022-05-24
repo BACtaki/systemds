@@ -2,6 +2,7 @@ package org.apache.sysds.runtime.matrix.data.sketch.countdistinctapprox;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,7 +30,11 @@ public class HyperLogLogHashBucket {
         HASH_BUCKETS = new HashMap<>(M);
     }
 
-    public void add(int hash) {
+    public int size() {
+        return HASH_BUCKETS.size();
+    }
+
+    public boolean add(int hash) {
         // A | B
         // [1 1 ... 1] | [1 1 ... 1]
         // get N bits from left to create A and B
@@ -47,7 +52,7 @@ public class HyperLogLogHashBucket {
         LOGGER.debug("Longest seq of 0s for key " + A + "=" + longestSeqOfZeros);
 
         // Now set BUCKETS[x] = y;
-        HASH_BUCKETS.put(A, longestSeqOfZeros);
+        return HASH_BUCKETS.put(A, longestSeqOfZeros) != null;
     }
 
     public int getLogLogEstimate() {
@@ -61,7 +66,7 @@ public class HyperLogLogHashBucket {
 
     public int getSuperLogLogEstimate() {
 
-        List<Integer> smallestKValues = getSmallestK(0.7);
+        List<Integer> smallestKValues = getSmallestPercentage(0.7);
         int m = smallestKValues.size();
 
         int averageBitLengthFloor = (int)Math.floor(getMean(smallestKValues, MeanType.SIMPLE));
@@ -71,7 +76,7 @@ public class HyperLogLogHashBucket {
     public int getHyperLogLogEstimate() {
 
 //        List<Integer> smallestKValues = getSmallestK(0.7);
-        List<Integer> smallestKValues = getSmallestK(0.7);
+        List<Integer> smallestKValues = getSmallestPercentage(0.7);
         int m = smallestKValues.size();
 
         int averageBitLengthFloor = (int)Math.floor(getMean(smallestKValues, MeanType.HARMONIC));
@@ -100,16 +105,28 @@ public class HyperLogLogHashBucket {
 
     }
 
-    private List<Integer> getSmallestK(double kPercentage) {
+    private List<Integer> getSmallestPercentage(double percentage) {
         LinkedList<Integer> values = new LinkedList<>(HASH_BUCKETS.values());
         Collections.sort(values);
 
-        int removeN = (int) Math.floor((1 - kPercentage) * HASH_BUCKETS.size());
+        int removeN = (int) Math.floor((1 - percentage) * HASH_BUCKETS.size());
         for (int i=0; i<removeN; ++i) {
             values.pollLast();
         }
 
         return values;
+    }
+
+    public void serialize(MatrixBlock blkOut) {
+        int i = 0;
+        // Todo row vector or column vector?
+        for (Integer hash : HASH_BUCKETS.keySet()) {
+            // Assume row vector
+            blkOut.setValue(0, i, hash);
+            blkOut.setValue(1, i, HASH_BUCKETS.get(hash));
+
+            i++;
+        }
     }
 
     /**

@@ -3,6 +3,7 @@ package org.apache.sysds.runtime.matrix.data.sketch.countdistinctapprox;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.sysds.common.Types;
 import org.apache.sysds.runtime.instructions.spark.data.CorrMatrixBlock;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 import org.apache.sysds.runtime.matrix.operators.CountDistinctOperator;
@@ -61,7 +62,51 @@ public class HLLSketch extends CountDistinctApproxSketch {
 
     @Override
     public CorrMatrixBlock create(MatrixBlock blkIn) {
-        throw new NotImplementedException("create() has not been implemented for HLL yet");
+        /**
+         * blkIn - M x N, max 1000 x 1000
+         *
+         * The return value is a CorrMatrixBlock -> (HashBucket values, hash bucket metadata)
+         *
+         * Overwrite input matrix to store hash bucket values
+         * N key-value pairs
+         *
+         * metadata ->
+         *  n - number of hashes
+         *  Todo parameterize this: smallestPercentage -> the smallest percentage of hashes to consider
+         *
+         *
+         */
+
+        HyperLogLogHashBucket hashBuckets = new HyperLogLogHashBucket(K);
+        if (this.op.getDirection() == Types.Direction.RowCol) {
+            MatrixBlock blkOut = new MatrixBlock(blkIn);
+            MatrixBlock blkOutCorr = new MatrixBlock(1, 1, false);
+
+            // Assume blkIn has at least 2 rows
+            // Todo handle case where it doesn't
+
+            int M = blkIn.getNumRows(), N = blkIn.getNumColumns();
+            for (int i=0; i<M; ++i) {
+                for (int j=0; j<N; ++j) {
+                    int hash = Hash.hash(blkIn.getValue(i, j), this.op.getHashType());
+                    LOGGER.debug("Object hash (decimal)=" + hash + " Object hash (binary)=" + Integer.toBinaryString(hash));
+
+                    hashBuckets.add(hash);
+                }
+            }
+
+            hashBuckets.serialize(blkOut);
+            blkOutCorr.setValue(0, 0, hashBuckets.size());
+
+            return new CorrMatrixBlock(blkOut, blkOutCorr);
+
+        } else if (this.op.getDirection() == Types.Direction.Row) {
+            throw new NotImplementedException("error");
+        } else if (this.op.getDirection() == Types.Direction.Col) {
+            throw new NotImplementedException("error");
+        } else {
+            throw new IllegalArgumentException("Unrecognized direction");
+        }
     }
 
     @Override
