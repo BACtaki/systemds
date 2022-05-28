@@ -26,7 +26,9 @@ public class HLLSketch extends CountDistinctApproxSketch {
     // In the CP case, blkIn is of size 1000 x 1000 -> there can be at most 10^6 unique values
     // (int) Math.ceil(Math.log(Math.pow(10, 6)) / Math.log(2)) = 20
     // Number of bits used to map hash to bucket
-    private static final int K = 8;
+    private static final int K = 10;
+    private static final double percentage = 0.7;
+    private static final double correction = 0.77351;
 
     public HLLSketch(CountDistinctOperator op) {
         super(op);
@@ -34,13 +36,13 @@ public class HLLSketch extends CountDistinctApproxSketch {
 
     @Override
     public Integer getScalarValue(MatrixBlock blkIn) {
-        HyperLogLogHashBucket hashBuckets = new HyperLogLogHashBucket(K);
+        LogLogHashBucket hashBuckets = new LogLogHashBucket(K);
         for (int i=0; i<blkIn.getNumRows(); ++i) {
             for (int j=0; j<blkIn.getNumColumns(); ++j) {
                 int hash = Hash.hash(blkIn.getValue(i, j), this.op.getHashType());
                 LOGGER.debug("Object hash (decimal)=" + hash + " Object hash (binary)=" + Integer.toBinaryString(hash));
 
-                hashBuckets.add(hash);
+                hashBuckets.addHash(hash);
             }
         }
 
@@ -56,8 +58,33 @@ public class HLLSketch extends CountDistinctApproxSketch {
     }
 
     @Override
-    public MatrixBlock getMatrixValue(CorrMatrixBlock blkIn) {
-        throw new NotImplementedException("create() has not been implemented for HLL yet");
+    public MatrixBlock getMatrixValue(CorrMatrixBlock arg0) {
+        MatrixBlock blkIn = arg0.getValue();
+        MatrixBlock blkInCorr = arg0.getCorrection();
+        if (op.getDirection() == Types.Direction.RowCol) {
+            int N = (int)blkInCorr.getValue(0, 0);
+
+            LogLogHashBucket hashBuckets = new LogLogHashBucket(K);
+            for (int i=0; i<N; ++i) {
+                int k = (int) blkIn.getValue(i, 0);
+                int v = (int) blkIn.getValue(i, 1);
+                hashBuckets.put(k, v);
+            }
+
+            int estimate = hashBuckets.getHyperLogLogEstimate();
+
+            // blkIn cannot be empty - reuse it
+            MatrixBlock blkOut = blkIn.slice(0, 0, 0, 0);
+            blkOut.setValue(0, 0, estimate);
+            return blkOut;
+
+        } else if (op.getDirection() == Types.Direction.Row) {
+
+        } else {
+            // Col
+        }
+
+        return new MatrixBlock(1);
     }
 
     @Override
@@ -73,41 +100,102 @@ public class HLLSketch extends CountDistinctApproxSketch {
          * metadata ->
          *  n - number of hashes
          *  Todo parameterize this: smallestPercentage -> the smallest percentage of hashes to consider
-         *
+         *  Currently, it is a constant that is applied at the very end (or should be).
          *
          */
 
-        HyperLogLogHashBucket hashBuckets = new HyperLogLogHashBucket(K);
+        LogLogHashBucket hashBuckets = new LogLogHashBucket(K);
+        int M = blkIn.getNumRows(), N = blkIn.getNumColumns();
         if (this.op.getDirection() == Types.Direction.RowCol) {
-            MatrixBlock blkOut = new MatrixBlock(blkIn);
+            // Todo overwrite input instead of allocating new memory
+//            MatrixBlock blkOut = new MatrixBlock(blkIn);
+
+            // M x N -> M x 1
+//            MatrixBlock blkOut = new MatrixBlock(blkIn.getNumRows(), 2, false);
+            MatrixBlock blkOut = new MatrixBlock((int)Math.pow(2, K), 2, false);
             MatrixBlock blkOutCorr = new MatrixBlock(1, 1, false);
 
-            // Assume blkIn has at least 2 rows
-            // Todo handle case where it doesn't
+            // Assume blkOut is wide enough to hold hash_bucket (key, value)
+            // pairs, i.e. blkOut comprises at least 2 rows/columns
 
-            int M = blkIn.getNumRows(), N = blkIn.getNumColumns();
             for (int i=0; i<M; ++i) {
                 for (int j=0; j<N; ++j) {
                     int hash = Hash.hash(blkIn.getValue(i, j), this.op.getHashType());
                     LOGGER.debug("Object hash (decimal)=" + hash + " Object hash (binary)=" + Integer.toBinaryString(hash));
-
-                    hashBuckets.add(hash);
+                    hashBuckets.addHash(hash);
                 }
             }
 
-            hashBuckets.serialize(blkOut);
-            blkOutCorr.setValue(0, 0, hashBuckets.size());
+            for ()
+            hashBuckets.serialize(blkOut, op.getDirection());
 
+            blkOutCorr.setValue(0, 0, hashBuckets.size());
             return new CorrMatrixBlock(blkOut, blkOutCorr);
 
         } else if (this.op.getDirection() == Types.Direction.Row) {
-            throw new NotImplementedException("error");
+            // Todo overwrite input instead of allocating new memory
+//            MatrixBlock blkOut = new MatrixBlock(blkIn);
+
+            // M x N -> M x 1
+            MatrixBlock blkOut = new MatrixBlock(blkIn.getNumRows(), 2, false);
+//            MatrixBlock blkOut = new MatrixBlock((int)Math.pow(2, K), 2, false);
+            MatrixBlock blkOutCorr = new MatrixBlock(blkIn.getNumRows(), 1, false);
+
+            // Assume blkOut is wide enough to hold hash_bucket (key, value)
+            // pairs, i.e. blkOut comprises at least 2 rows/columns
+
+            for (int i=0; i<M; ++i) {
+                for (int j=0; j<N; ++j) {
+                    int hash = Hash.hash(blkIn.getValue(i, j), this.op.getHashType());
+                    LOGGER.debug("Object hash (decimal)=" + hash + " Object hash (binary)=" + Integer.toBinaryString(hash));
+                    hashBuckets.addHash(hash);
+                }
+
+                // New row
+                blkOutCorr.setValue(i, 0, hashBuckets.size());
+                hashBuckets.clear();
+            }
+
+            hashBuckets.serialize(blkOut, op.getDirection());
+            return new CorrMatrixBlock(blkOut, blkOutCorr);
+
         } else if (this.op.getDirection() == Types.Direction.Col) {
-            throw new NotImplementedException("error");
+            MatrixBlock blkOut = new MatrixBlock(2, blkIn.getNumColumns(), false);
+//            MatrixBlock blkOut = new MatrixBlock(2, (int)Math.pow(2, K), false);
+            MatrixBlock blkOutCorr = new MatrixBlock(1, blkIn.getNumColumns(), false);
+
+            for (int j=0; j<N; ++j) {
+                for (int i=0; i<M; ++i) {
+                    int hash = Hash.hash(blkIn.getValue(i, j), this.op.getHashType());
+                    LOGGER.debug("Object hash (decimal)=" + hash + " Object hash (binary)=" + Integer.toBinaryString(hash));
+                    hashBuckets.addHash(hash);
+                }
+
+                // New column
+                blkOutCorr.setValue(0, j, hashBuckets.size());
+                hashBuckets.clear();
+            }
+
+            hashBuckets.serialize(blkOut, op.getDirection());
+            return new CorrMatrixBlock(blkOut, blkOutCorr);
+
         } else {
             throw new IllegalArgumentException("Unrecognized direction");
         }
     }
+
+//    private MatrixBlock sliceMatrixBlockByIndexDirection(MatrixBlock blkIn, int idx) {
+//        MatrixBlock blkInSlice;
+//        if (op.getDirection().isRow()) {
+//            blkInSlice = blkIn.slice(idx, idx);
+//        } else if (op.getDirection().isCol()) {
+//            blkInSlice = blkIn.slice(0, blkIn.getNumRows() - 1, idx, idx);
+//        } else {
+//            blkInSlice = blkIn;
+//        }
+//
+//        return blkInSlice;
+//    }
 
     @Override
     public CorrMatrixBlock union(CorrMatrixBlock arg0, CorrMatrixBlock arg1) {

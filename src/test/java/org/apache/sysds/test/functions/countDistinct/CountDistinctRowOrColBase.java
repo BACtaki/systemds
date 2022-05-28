@@ -69,6 +69,19 @@ public abstract class CountDistinctRowOrColBase extends CountDistinctBase {
         countDistinctMatrixTest(getDirection(), actualDistinctCount, cols, rows, sparsity, ex, tolerance);
     }
 
+    // This is it!
+    @Test
+    public void testCPDenseLarge1() {
+        Types.ExecType ex = Types.ExecType.CP;
+
+        int actualDistinctCount = 100;
+        int rows = 10000, cols = 1000;
+        double sparsity = 0.9;
+        double tolerance = actualDistinctCount * this.percentTolerance;
+
+        countDistinctMatrixTest(getDirection(), actualDistinctCount, cols, rows, sparsity, ex, tolerance);
+    }
+
     @Test
     public void testCPSparseSmall() {
         Types.ExecType execType = Types.ExecType.CP;

@@ -66,7 +66,8 @@ public class LibMatrixCountDistinct {
 	 */
 	public static int estimateDistinctValues(MatrixBlock in, CountDistinctOperator op) {
 		int res = 0;
-		if((op.getOperatorType() == CountDistinctOperatorTypes.KMV || op.getOperatorType() == CountDistinctOperatorTypes.HLL) &&
+//		if((op.getOperatorType() == CountDistinctOperatorTypes.KMV || op.getOperatorType() == CountDistinctOperatorTypes.HLL) &&
+		if((op.getOperatorType() == CountDistinctOperatorTypes.KMV) &&
 			(op.getHashType() == HashType.ExpHash || op.getHashType() == HashType.StandardJava)) {
 			throw new DMLException("Invalid hashing configuration using " + op.getHashType() + " and " + op.getOperatorType());
 		}

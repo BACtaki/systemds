@@ -47,6 +47,7 @@ public class CountDistinctOperator extends Operator {
 				throw new DMLRuntimeException(opType + " not supported for CountDistinct Operator");
 		}
 		this.hashType = HashType.LinearHash;
+//		this.hashType = HashType.StandardJava;
 	}
 
 	public CountDistinctOperator(CountDistinctOperatorTypes operatorType) {

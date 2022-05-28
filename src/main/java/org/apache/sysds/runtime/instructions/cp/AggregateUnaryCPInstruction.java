@@ -220,6 +220,9 @@ public class AggregateUnaryCPInstruction extends UnaryCPInstruction {
 
 				if (op.getDirection().isRowCol()) {
 					int res = LibMatrixCountDistinct.estimateDistinctValues(input, op);
+//					CorrMatrixBlock sketch = LibMatrixCountDistinct.createSketch(input, op);
+//					MatrixBlock res1 = LibMatrixCountDistinct.countDistinctValuesFromSketch(sketch, op);
+//					int res = (int)res1.getValue(0, 0);
 					ec.releaseMatrixInput(input1.getName());
 					ec.setScalarOutput(output_name, new IntObject(res));
 
