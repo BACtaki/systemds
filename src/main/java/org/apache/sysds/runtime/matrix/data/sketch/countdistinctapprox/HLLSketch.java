@@ -6,6 +6,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.common.Types;
 import org.apache.sysds.runtime.instructions.spark.data.CorrMatrixBlock;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
+import org.apache.sysds.runtime.matrix.data.Pair;
 import org.apache.sysds.runtime.matrix.operators.CountDistinctOperator;
 import org.apache.sysds.utils.Hash;
 
@@ -118,6 +119,7 @@ public class HLLSketch extends CountDistinctApproxSketch {
             // Assume blkOut is wide enough to hold hash_bucket (key, value)
             // pairs, i.e. blkOut comprises at least 2 rows/columns
 
+            // Push all values into the hash bucket data structure
             for (int i=0; i<M; ++i) {
                 for (int j=0; j<N; ++j) {
                     int hash = Hash.hash(blkIn.getValue(i, j), this.op.getHashType());
@@ -126,8 +128,14 @@ public class HLLSketch extends CountDistinctApproxSketch {
                 }
             }
 
-            for ()
-            hashBuckets.serialize(blkOut, op.getDirection());
+            // Serialize values in hash bucket data structure to a MatrixBlock
+            int rowIndex = 0;
+            for (Pair<Integer, Integer> kvPair : hashBuckets) {
+                int k = kvPair.getKey();
+                int v = kvPair.getValue();
+
+                blkOut.setValue(rowIndex, k , v);
+            }
 
             blkOutCorr.setValue(0, 0, hashBuckets.size());
             return new CorrMatrixBlock(blkOut, blkOutCorr);

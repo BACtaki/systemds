@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
+// Todo Parameterize?
 public class LogLogHashBucket implements Iterable<Pair<Integer, Integer>> {
 
     public enum MeanType {
@@ -21,7 +22,8 @@ public class LogLogHashBucket implements Iterable<Pair<Integer, Integer>> {
     private static int M;
 
     // Todo do we need to make this static? Pros and cons
-    private static HashMap<Integer, Integer> hashBuckets;
+    // Todo do we need to make this final? Pros and cons
+    private HashMap<Integer, Integer> hashBuckets;
     private static final double correction = 0.77351;
 
     public LogLogHashBucket(int leadingK) {
@@ -33,7 +35,7 @@ public class LogLogHashBucket implements Iterable<Pair<Integer, Integer>> {
     @NotNull
     @Override
     public Iterator<Pair<Integer, Integer>> iterator() {
-        return new LogLogHashBucketIterator(this);
+        return new LogLogHashBucketIterator<>(hashBuckets);
     }
 
     public int size() {
@@ -45,6 +47,7 @@ public class LogLogHashBucket implements Iterable<Pair<Integer, Integer>> {
      * @param hash
      * @return
      */
+    // Todo better method name
     public boolean addHash(int hash) {
         // A | B
         // [1 1 ... 1] | [1 1 ... 1]
@@ -66,7 +69,10 @@ public class LogLogHashBucket implements Iterable<Pair<Integer, Integer>> {
         return hashBuckets.put(A, longestSeqOfZeros) != null;
     }
 
+    // Todo better method name
     public boolean put(int key, int value) {
+
+        // Todo Replace value with maximum
 
         return hashBuckets.put(key, value) != null;
     }
