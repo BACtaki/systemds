@@ -206,6 +206,10 @@ public class HLLSketch extends CountDistinctApproxSketch {
 
     @Override
     public CorrMatrixBlock union(CorrMatrixBlock arg0, CorrMatrixBlock arg1) {
+
+        // Todo we have to be careful when taking the union in the row/col cases:
+        //   we have to store the union in the larger of the 2 and ensure that
+        //   reduceByKey() always retains the larger of the 2
         MatrixBlock blkInA = arg0.getValue();
         MatrixBlock blkInCorrA = arg0.getCorrection();
 
