@@ -6,13 +6,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 
 // Todo Parameterize
-class LogLogHashBucketIterator<T> implements Iterator<Pair<T, T>> {
+class HashMapPairIterator<T> implements Iterator<Pair<T, T>> {
     // Todo logger
 
     private HashMap<T, T> hashBuckets;
     private Iterator<T> hashBucketsKeysIterator;
 
-    public LogLogHashBucketIterator(HashMap<T, T> hashBuckets) {
+    public HashMapPairIterator(HashMap<T, T> hashBuckets) {
         this.hashBuckets = hashBuckets;
         this.hashBucketsKeysIterator = this.hashBuckets.keySet().iterator();
     }

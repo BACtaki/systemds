@@ -60,6 +60,7 @@ public class HLLSketch extends CountDistinctApproxSketch {
 
     @Override
     public MatrixBlock getMatrixValue(CorrMatrixBlock arg0) {
+        // Todo fix
         MatrixBlock blkIn = arg0.getValue();
         MatrixBlock blkInCorr = arg0.getCorrection();
         if (op.getDirection() == Types.Direction.RowCol) {
@@ -106,22 +107,14 @@ public class HLLSketch extends CountDistinctApproxSketch {
          */
 
         LogLogHashBucket hashBuckets = new LogLogHashBucket(K);
-        int M = blkIn.getNumRows(), N = blkIn.getNumColumns();
+        int R = blkIn.getNumRows(), C = blkIn.getNumColumns();
         if (this.op.getDirection() == Types.Direction.RowCol) {
-            // Todo overwrite input instead of allocating new memory
-//            MatrixBlock blkOut = new MatrixBlock(blkIn);
+            int N = (int)Math.pow(2, K) + 1;
 
-            // M x N -> M x 1
-//            MatrixBlock blkOut = new MatrixBlock(blkIn.getNumRows(), 2, false);
-            MatrixBlock blkOut = new MatrixBlock((int)Math.pow(2, K), 2, false);
-            MatrixBlock blkOutCorr = new MatrixBlock(1, 1, false);
-
-            // Assume blkOut is wide enough to hold hash_bucket (key, value)
-            // pairs, i.e. blkOut comprises at least 2 rows/columns
-
+            MatrixBlock blkOutCorr = new MatrixBlock(2, N, false);
             // Push all values into the hash bucket data structure
-            for (int i=0; i<M; ++i) {
-                for (int j=0; j<N; ++j) {
+            for (int i=0; i<R; ++i) {
+                for (int j=0; j<C; ++j) {
                     int hash = Hash.hash(blkIn.getValue(i, j), this.op.getHashType());
                     LOGGER.debug("Object hash (decimal)=" + hash + " Object hash (binary)=" + Integer.toBinaryString(hash));
                     hashBuckets.addHash(hash);
@@ -129,85 +122,166 @@ public class HLLSketch extends CountDistinctApproxSketch {
             }
 
             // Serialize values in hash bucket data structure to a MatrixBlock
-            int rowIndex = 0;
+            int j = 0;
             for (Pair<Integer, Integer> kvPair : hashBuckets) {
                 int k = kvPair.getKey();
                 int v = kvPair.getValue();
 
-                blkOut.setValue(rowIndex, k , v);
+                blkOutCorr.setValue(0, j, k);
+                blkOutCorr.setValue(1, j, v);
+                ++j;
             }
 
-            blkOutCorr.setValue(0, 0, hashBuckets.size());
-            return new CorrMatrixBlock(blkOut, blkOutCorr);
+            blkOutCorr.setValue(0, N-1, hashBuckets.size());
+            blkOutCorr.setValue(1, N-1, hashBuckets.size());
+
+            return new CorrMatrixBlock(null, blkOutCorr);
 
         } else if (this.op.getDirection() == Types.Direction.Row) {
-            // Todo overwrite input instead of allocating new memory
-//            MatrixBlock blkOut = new MatrixBlock(blkIn);
+            int N = C + 1;
 
-            // M x N -> M x 1
-            MatrixBlock blkOut = new MatrixBlock(blkIn.getNumRows(), 2, false);
-//            MatrixBlock blkOut = new MatrixBlock((int)Math.pow(2, K), 2, false);
-            MatrixBlock blkOutCorr = new MatrixBlock(blkIn.getNumRows(), 1, false);
+            MatrixBlock blkOut = blkIn;
+            MatrixBlock blkOutCorr = new MatrixBlock(R, N, false);
 
-            // Assume blkOut is wide enough to hold hash_bucket (key, value)
-            // pairs, i.e. blkOut comprises at least 2 rows/columns
-
-            for (int i=0; i<M; ++i) {
-                for (int j=0; j<N; ++j) {
+            for (int i=0; i<R; ++i) {
+                for (int j=0; j<C; ++j) {
                     int hash = Hash.hash(blkIn.getValue(i, j), this.op.getHashType());
                     LOGGER.debug("Object hash (decimal)=" + hash + " Object hash (binary)=" + Integer.toBinaryString(hash));
                     hashBuckets.addHash(hash);
                 }
 
-                // New row
-                blkOutCorr.setValue(i, 0, hashBuckets.size());
+                // Serialize hash buckets to MatrixBlock sketch
+                int j = 0;
+                for (Pair<Integer, Integer> kvPair : hashBuckets) {
+                    int k = kvPair.getKey();
+                    int v = kvPair.getValue();
+
+                    blkOut.setValue(i, j, k);
+                    blkOutCorr.setValue(i, j, v);
+                    ++j;
+                }
+                blkOutCorr.setValue(i, N-1, hashBuckets.size());
+
+                // Prepare hash buckets data structure for new row
                 hashBuckets.clear();
             }
 
-            hashBuckets.serialize(blkOut, op.getDirection());
             return new CorrMatrixBlock(blkOut, blkOutCorr);
 
         } else if (this.op.getDirection() == Types.Direction.Col) {
-            MatrixBlock blkOut = new MatrixBlock(2, blkIn.getNumColumns(), false);
-//            MatrixBlock blkOut = new MatrixBlock(2, (int)Math.pow(2, K), false);
-            MatrixBlock blkOutCorr = new MatrixBlock(1, blkIn.getNumColumns(), false);
+            int N = R + 1;
 
-            for (int j=0; j<N; ++j) {
-                for (int i=0; i<M; ++i) {
+            MatrixBlock blkOut = blkIn;
+            MatrixBlock blkOutCorr = new MatrixBlock(N, C, false);
+
+            for (int j=0; j<C; ++j) {
+                for (int i=0; i<R; ++i) {
                     int hash = Hash.hash(blkIn.getValue(i, j), this.op.getHashType());
                     LOGGER.debug("Object hash (decimal)=" + hash + " Object hash (binary)=" + Integer.toBinaryString(hash));
                     hashBuckets.addHash(hash);
                 }
 
-                // New column
-                blkOutCorr.setValue(0, j, hashBuckets.size());
+                // Serialize hash buckets to MatrixBlock sketch
+                int i = 0;
+                for (Pair<Integer, Integer> kvPair : hashBuckets) {
+                    int k = kvPair.getKey();
+                    int v = kvPair.getValue();
+
+                    blkOut.setValue(i, j, k);
+                    blkOutCorr.setValue(i, j, v);
+                    ++i;
+                }
+                blkOutCorr.setValue(N-1, j, hashBuckets.size());
+
+                // Prepare hash buckets data structure for new col
                 hashBuckets.clear();
             }
 
-            hashBuckets.serialize(blkOut, op.getDirection());
             return new CorrMatrixBlock(blkOut, blkOutCorr);
 
         } else {
-            throw new IllegalArgumentException("Unrecognized direction");
+            throw new IllegalArgumentException("Invalid direction");
         }
     }
 
-//    private MatrixBlock sliceMatrixBlockByIndexDirection(MatrixBlock blkIn, int idx) {
-//        MatrixBlock blkInSlice;
-//        if (op.getDirection().isRow()) {
-//            blkInSlice = blkIn.slice(idx, idx);
-//        } else if (op.getDirection().isCol()) {
-//            blkInSlice = blkIn.slice(0, blkIn.getNumRows() - 1, idx, idx);
-//        } else {
-//            blkInSlice = blkIn;
-//        }
-//
-//        return blkInSlice;
-//    }
-
     @Override
     public CorrMatrixBlock union(CorrMatrixBlock arg0, CorrMatrixBlock arg1) {
-        return null;
+        MatrixBlock blkInA = arg0.getValue();
+        MatrixBlock blkInCorrA = arg0.getCorrection();
+
+        MatrixBlock blkInB = arg1.getValue();
+        MatrixBlock blkInCorrB = arg1.getCorrection();
+        if (this.op.getDirection() == Types.Direction.RowCol) {
+            // Both blkInCorrA and blkInCorrB are the same dimensions.
+            // We will overwrite blkInCorrA to store the output.
+            MatrixBlock blkOutCorr = blkInCorrA;
+
+            LogLogHashBucket hashBuckets = new LogLogHashBucket(K);
+
+            int nA = (int)blkInCorrA.getValue(0, blkInCorrA.getNumColumns() - 1);
+            int nB = (int)blkInCorrB.getValue(0, blkInCorrB.getNumColumns() - 1);
+
+            for (int j=0; j<Math.min(nA, nB); ++j) {
+                int k = (int) blkInCorrA.getValue(0, j);
+                int v = (int) blkInCorrA.getValue(1, j);
+                hashBuckets.put(k, v);
+
+                k = (int) blkInCorrB.getValue(0, j);
+                v = (int) blkInCorrB.getValue(1, j);
+                hashBuckets.put(k, v);
+            }
+
+            MatrixBlock larger = blkInA;
+            if (Math.max(nA, nB) == nB) {
+                larger = blkInB;
+            }
+
+            int j = Math.min(nA, nB);
+            while (j < Math.max(nA, nB)) {
+                int k = (int) larger.getValue(0, j);
+                int v = (int) larger.getValue(1, j);
+                hashBuckets.put(k, v);
+                ++j;
+            }
+
+            j = 0;
+            for (Pair<Integer, Integer> kvPair : hashBuckets) {
+                int k = kvPair.getKey();
+                int v = kvPair.getValue();
+
+                blkOutCorr.setValue(0, j, k);
+                blkOutCorr.setValue(1, j, k);
+                ++j;
+            }
+
+            blkOutCorr.setValue(0, blkOutCorr.getNumColumns() - 1, hashBuckets.size());
+            blkOutCorr.setValue(1, blkOutCorr.getNumColumns() - 1, hashBuckets.size());
+
+            return new CorrMatrixBlock(null, blkOutCorr);
+
+        } else if (this.op.getDirection() == Types.Direction.Row) {
+
+            int nA = (int)blkInCorrA.getValue(0, blkInCorrA.getNumColumns() - 1);
+            int nB = (int)blkInCorrB.getValue(0, blkInCorrB.getNumColumns() - 1);
+
+            MatrixBlock blkOut = blkInA;
+            MatrixBlock blkOutCorr = blkInCorrA;
+            if (nB > nA) {
+                blkOut = blkInB;
+                blkOutCorr = blkInCorrB;
+            }
+
+            LogLogHashBucket hashBuckets = new LogLogHashBucket(K);
+
+            return new CorrMatrixBlock(null, blkOutCorr);
+
+        } else if (this.op.getDirection() == Types.Direction.Col) {
+
+        } else {
+            throw new IllegalArgumentException("Invalid direction");
+        }
+
+        throw new NotImplementedException("union has not been implemented yet");
     }
 
     @Override

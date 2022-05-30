@@ -10,7 +10,7 @@ import java.util.*;
 // Todo Parameterize?
 public class LogLogHashBucket implements Iterable<Pair<Integer, Integer>> {
 
-    public enum MeanType {
+    private enum MeanType {
         SIMPLE, HARMONIC
     }
 
@@ -35,7 +35,7 @@ public class LogLogHashBucket implements Iterable<Pair<Integer, Integer>> {
     @NotNull
     @Override
     public Iterator<Pair<Integer, Integer>> iterator() {
-        return new LogLogHashBucketIterator<>(hashBuckets);
+        return new HashMapPairIterator<>(hashBuckets);
     }
 
     public int size() {
@@ -74,7 +74,12 @@ public class LogLogHashBucket implements Iterable<Pair<Integer, Integer>> {
 
         // Todo Replace value with maximum
 
-        return hashBuckets.put(key, value) != null;
+        int longest = value;
+        if (hashBuckets.containsKey(key)) {
+            longest = Math.max(longest, hashBuckets.get(key));
+        }
+
+        return hashBuckets.put(key, longest) != null;
     }
 
     public void clear() {
@@ -142,30 +147,6 @@ public class LogLogHashBucket implements Iterable<Pair<Integer, Integer>> {
 
         return values;
     }
-
-//    public void serialize(MatrixBlock blkOut, Types.Direction dir) {
-//        int i = 0;
-//        // HASH_BUCKETS will have a maximum of m = 2^k = 1024 entries
-//        for (Integer hash : hashBuckets.keySet()) {
-//            if (dir == Types.Direction.RowCol) {
-//                // blkOut is a M x 2 matrix
-//                blkOut.setValue(i, 0, hash);
-//                blkOut.setValue(i, 1, hashBuckets.get(hash));
-//            } else if (dir == Types.Direction.Row) {
-//                // Todo fix
-//                // blkOut is a M x 2 matrix
-//                blkOut.setValue(i, 0, hash);
-//                blkOut.setValue(i, 1, hashBuckets.get(hash));
-//            } else {
-//                // Todo fix
-//                // blkOut is a 2 x N matrix
-//                blkOut.setValue(0, i, hash);
-//                blkOut.setValue(1, i, hashBuckets.get(hash));
-//            }
-//
-//            i++;
-//        }
-//    }
 
     /**
      * Todo
