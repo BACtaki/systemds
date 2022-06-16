@@ -155,6 +155,8 @@ public class LogLogHashBucket implements Iterable<Pair<Integer, Integer>> {
      * @return
      */
     private int getBinaryRank(int hash) {
+        //
+        // We need to adjust the offset to account for the first K bits of the hash have been truncated:
         return Integer.numberOfLeadingZeros(hash) - K + 2;
     }
 
