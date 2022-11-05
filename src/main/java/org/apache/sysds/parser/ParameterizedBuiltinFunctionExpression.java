@@ -258,6 +258,9 @@ public class ParameterizedBuiltinFunctionExpression extends DataIdentifier
 			validateCountDistinctApprox(output, conditional);
 			break;
 
+//		case UNIQUE:
+//			validateUnique(output, conditional);
+
 		default: //always unconditional (because unsupported operation)
 			//handle common issue of transformencode
 			if( getOpCode()==Builtins.TRANSFORMENCODE )
@@ -494,6 +497,35 @@ public class ParameterizedBuiltinFunctionExpression extends DataIdentifier
 			output.setValueType(ValueType.INT64);
 			output.setNnz(1);
 		}
+	}
+
+	private void validateUnique(DataIdentifier output, boolean conditional) {
+		HashMap<String, Expression> varParams = getVarParams();
+
+		// "data" is the only parameter that is allowed to be unnamed
+		if (varParams.containsKey(null)) {
+			varParams.put("data", varParams.remove(null));
+		}
+
+		// Validate the number of parameters
+		String fname = getOpCode().getName();
+		String usageMessage = "function " + fname + " takes at least 1 and at most 3 parameters";
+		if (varParams.size() < 1) {
+			raiseValidateError("Too few parameters: " + usageMessage, conditional);
+		}
+
+		if (varParams.size() > 2) {
+			raiseValidateError("Too many parameters: " + usageMessage, conditional);
+		}
+
+		// Check parameter names are valid
+		Set<String> validParameterNames = CollectionUtils.asSet("data", "ignoreValues");
+		checkInvalidParameters(getOpCode(), varParams, validParameterNames);
+
+		// Check parameter expression data types match expected
+		checkDataType(false, fname, "data", DataType.MATRIX, conditional);
+		checkDataValueType(false, fname, "data", DataType.MATRIX, ValueType.FP64, conditional);
+		checkDataValueType(true, fname, "ignoreValues", DataType.LIST, ValueType.FP64, conditional);
 	}
 
 	private void checkStringParam(boolean optional, String fname, String pname, boolean conditional) {

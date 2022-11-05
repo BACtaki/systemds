@@ -288,7 +288,7 @@ public enum Builtins {
 	TRANS("t", false),
 	TSNE("tSNE", true),
 	TYPEOF("typeof", false),
-	UNIQUE("unique", true),
+//	UNIQUE("unique", true),
 	UNIVAR("univar", true),
 	UNION("union", true),
 	VAR("var", false),
@@ -344,6 +344,7 @@ public enum Builtins {
 	TRANSFORMENCODE("transformencode", false, true),
 	TRANSFORMMETA("transformmeta", false, true),
 	UNDER_SAMPLING("underSampling", true),
+//	UNIQUE("unique", true, true),
 	UPPER_TRI("upper.tri", false, true),
 	XDUMMY1("xdummy1", true), //error handling test
 	XDUMMY2("xdummy2", true); //error handling test
