@@ -23,5 +23,5 @@ options(digits=22)
 library("Matrix")
 
 X = as.matrix(readMM(paste(args[1], "X.mtx", sep="")));
-R = unique(X[order(X[,1]),]);
+R = sort(unique(X));
 writeMM(as(R, "CsparseMatrix"), paste(args[2], "R", sep=""));

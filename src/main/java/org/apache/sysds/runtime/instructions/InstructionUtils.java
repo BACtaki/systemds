@@ -90,20 +90,8 @@ import org.apache.sysds.runtime.instructions.fed.FEDInstruction.FederatedOutput;
 import org.apache.sysds.runtime.instructions.gpu.GPUInstruction.GPUINSTRUCTION_TYPE;
 import org.apache.sysds.runtime.instructions.spark.SPInstruction.SPType;
 import org.apache.sysds.runtime.matrix.data.LibCommonsMath;
-import org.apache.sysds.runtime.matrix.operators.AggregateBinaryOperator;
-import org.apache.sysds.runtime.matrix.operators.AggregateOperator;
-import org.apache.sysds.runtime.matrix.operators.AggregateTernaryOperator;
-import org.apache.sysds.runtime.matrix.operators.AggregateUnaryOperator;
-import org.apache.sysds.runtime.matrix.operators.BinaryOperator;
-import org.apache.sysds.runtime.matrix.operators.CMOperator;
+import org.apache.sysds.runtime.matrix.operators.*;
 import org.apache.sysds.runtime.matrix.operators.CMOperator.AggregateOperationTypes;
-import org.apache.sysds.runtime.matrix.operators.CountDistinctOperator;
-import org.apache.sysds.runtime.matrix.operators.LeftScalarOperator;
-import org.apache.sysds.runtime.matrix.operators.Operator;
-import org.apache.sysds.runtime.matrix.operators.RightScalarOperator;
-import org.apache.sysds.runtime.matrix.operators.ScalarOperator;
-import org.apache.sysds.runtime.matrix.operators.TernaryOperator;
-import org.apache.sysds.runtime.matrix.operators.UnaryOperator;
 
 
 public class InstructionUtils 
@@ -452,6 +440,18 @@ public class InstructionUtils
 		else if ( opcode.equalsIgnoreCase("uacdapc") ) {
 			aggun = new CountDistinctOperator(AggregateUnaryCPInstruction.AUType.COUNT_DISTINCT_APPROX,
 					Direction.Col, ReduceRow.getReduceRowFnObject());
+		}
+		else if ( opcode.equalsIgnoreCase("unique") ) {
+			AggregateOperator agg = new AggregateOperator(0, Builtin.getBuiltinFnObject("unique"));
+			aggun = new UnarySketchOperator(agg, ReduceAll.getReduceAllFnObject(), Direction.RowCol, numThreads);
+		}
+		else if ( opcode.equalsIgnoreCase("uniquer") ) {
+			AggregateOperator agg = new AggregateOperator(0, Builtin.getBuiltinFnObject("unique"));
+			aggun = new UnarySketchOperator(agg, ReduceCol.getReduceColFnObject(), Direction.Row, numThreads);
+		}
+		else if ( opcode.equalsIgnoreCase("uniquec") ) {
+			AggregateOperator agg = new AggregateOperator(0, Builtin.getBuiltinFnObject("unique"));
+			aggun = new UnarySketchOperator(agg, ReduceRow.getReduceRowFnObject(), Direction.Col, numThreads);
 		}
 
 		return aggun;
